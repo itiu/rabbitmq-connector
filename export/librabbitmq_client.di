@@ -89,7 +89,7 @@ vhost = _vhost;
 {
 message_acceptor = _message_acceptor;
 }
-    int send(char* routingkey, char* messagebody);
+    int send(char* routingkey, char* messagebody, bool send_more);
     char* get_message()
 {
 return null;

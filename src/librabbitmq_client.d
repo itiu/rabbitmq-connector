@@ -49,7 +49,7 @@ class librabbitmq_client: mom_client
 		message_acceptor = _message_acceptor;
 	}
 
-	int send(char* routingkey, char* messagebody)
+	int send(char* routingkey, char* messagebody, bool send_more)
 	{
 
 		amqp_basic_properties_t props;
