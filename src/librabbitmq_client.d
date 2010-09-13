@@ -33,7 +33,12 @@ class librabbitmq_client: mom_client
 	char[] hostname;
 	int port;
 	void function(byte* txt, ulong size, mom_client from_client) message_acceptor;
-
+	
+	public char[] getInfo ()
+	{
+		return "rabbitmq";
+	}
+	
 	this(char[] _hostname, int _port, char[] _login, char[] _passw, char[] _queue, char[] _vhost)
 	{
 		hostname = _hostname;
