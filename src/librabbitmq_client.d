@@ -20,7 +20,7 @@ private import tango.core.Thread;
 
 class librabbitmq_client: mom_client
 {
-	amqp_connection_state_t *conn;
+	amqp_connection_state_t* conn;
 	char[] vhost;
 	char[] login;
 	char[] passw;
@@ -33,19 +33,19 @@ class librabbitmq_client: mom_client
 	char[] hostname;
 	int port;
 	void function(byte* txt, ulong size, mom_client from_client) message_acceptor;
-	
-	public char[] getInfo ()
+
+	public char[] getInfo()
 	{
 		return "rabbitmq";
 	}
-	
+
 	this(char[] _hostname, int _port, char[] _login, char[] _passw, char[] _queue, char[] _vhost)
 	{
 		hostname = _hostname;
 		port = _port;
 		login = _login;
 		passw = _passw;
-		bindingkey = cast(char*)_queue;
+		bindingkey = cast(char*) _queue;
 		vhost = _vhost;
 	}
 
@@ -66,13 +66,12 @@ class librabbitmq_client: mom_client
 		//		printf("lc#3\n");
 		//			Thread.sleep(15.650);
 
-
 		//		//		printf("%s \n", conn);
-		       //exchange, routingkey, props, messagebody);
+		//exchange, routingkey, props, messagebody);
 
 		//log.trace("basic publish start");
 		int result_publish = amqp_basic_publish(conn, 1, amqp_cstring_bytes(exchange), amqp_cstring_bytes(routingkey), 0, 0, &props,
-							amqp_cstring_bytes(messagebody));
+				amqp_cstring_bytes(messagebody));
 		//log.trace("basic publish end");
 		int i = 0;
 		while(socket is null || i++ > 100)
@@ -85,7 +84,8 @@ class librabbitmq_client: mom_client
 		return result_publish;
 	}
 
-       	char* get_message () {
+	char* get_message()
+	{
 		return null;
 	}
 
@@ -101,39 +101,55 @@ class librabbitmq_client: mom_client
 			bool is_connect_succsess = false;
 			while(!is_connect_succsess)
 			{
-				Stdout.format("\nlistener:connect to AMQP server {}:{}", hostname, port).newline;
+				Stdout.format("\nListener:connect to AMQP server {}:{}", hostname, port).newline;
 
-				socket = amqp_open_socket(hostname, port);
+				try
+				{
+					Stdout.format("open socket... ");
+					socket = amqp_open_socket(hostname, port);
+					Stdout.format("ok").newline;
+				} catch(Exception ex)
+				{
+					Stdout.format("can not open socket").newline;
+					Stdout.format("sleep {} sec.", waiting_for_login).newline;
+					Thread.sleep(waiting_for_login);
+					break;
+				}
 
 				if(socket.native().sock < 0)
-					Stdout.format("connection faled, errcode={} ", socket).newline;
+					Stdout.format("socket is faled, errcode={} ", socket).newline;
 				else
-					Stdout.format("connection is ok, code={}", socket.native().sock).newline;
-
-//				if(socket.sock == 4)
 				{
+					Stdout.format("socket is ok, code={}", socket.native().sock).newline;
 
-					Stdout.format("trying to connect...").newline;
-
-					conn = amqp_new_connection(socket);
-
-					Stdout.format("connection={:X4} ", conn).newline;
-
-					amqp_rpc_reply_t res_login;
-
-					res_login = amqp_login(conn, cast(char*) vhost, 0, 131072, 0, amqp_sasl_method_enum.AMQP_SASL_METHOD_PLAIN, cast(char*) login,
-							cast(char*) passw);
-					Stdout.format("login state={}", res_login.reply_type).newline;
-
-					if(res_login.reply_type == 1)
+					//				if(socket.sock == 4)
 					{
-						is_connect_succsess = true;
-						amqp_channel_open(conn, 1);
-					}
 
+						Stdout.format("trying to connect...").newline;
+
+						conn = amqp_new_connection(socket);
+
+						Stdout.format("connection={:X4} ", conn).newline;
+
+						amqp_rpc_reply_t res_login;
+
+						res_login = amqp_login(conn, cast(char*) vhost, 0, 131072, 0, amqp_sasl_method_enum.AMQP_SASL_METHOD_PLAIN,
+								cast(char*) login, cast(char*) passw);
+						Stdout.format("login state={}", res_login.reply_type).newline;
+
+						if(res_login.reply_type == 1 || res_login.reply_type == 2)
+						{
+							is_connect_succsess = true;
+							amqp_channel_open(conn, 1);
+						}
+
+					}
 				}
 				if(!is_connect_succsess)
+				{
+					Stdout.format("sleep {} sec.", waiting_for_login).newline;
 					Thread.sleep(waiting_for_login);
+				}
 			}
 
 			amqp_table_t arguments;
@@ -158,35 +174,34 @@ class librabbitmq_client: mom_client
 				amqp_queue_declare_ok_t* r = amqp_queue_declare(conn, 1, AMQP_EMPTY_BYTES, 0, 0, 0, 0, AMQP_EMPTY_TABLE);
 				//				die_on_amqp_error(amqp_rpc_reply, "Declaring queue");
 				/*				queuename = amqp_bytes_malloc_dup(r.queue);
-				if(queuename.bytes is null)
-				{
-					throw new Exception("Declaring queue:Copying queue name");
-					}*/
+				 if(queuename.bytes is null)
+				 {
+				 throw new Exception("Declaring queue:Copying queue name");
+				 }*/
 				Stdout.format("declare ok").newline;
-			}
-			catch(Exception ex)
+			} catch(Exception ex)
 			{
 				printf("bindingkey=[%s] \n", bindingkey);
-				Stdout.format("Exception in:{}, amqp_queue_declare\n", ex).newline;;
+				Stdout.format("amqp_open_socket:Exception in:{}, amqp_queue_declare\n", ex).newline;
 				throw ex;
 			}
 
 			/*			try
-			{
-				//				#define AMQP_EMPTY_TABLE ((amqp_table_t) { .num_entries = 0, .entries = NULL }) 
-				amqp_table_t AMQP_EMPTY_TABLE;
-				AMQP_EMPTY_TABLE.num_entries = 0;
-				AMQP_EMPTY_TABLE.entries = null;
+			 {
+			 //				#define AMQP_EMPTY_TABLE ((amqp_table_t) { .num_entries = 0, .entries = NULL }) 
+			 amqp_table_t AMQP_EMPTY_TABLE;
+			 AMQP_EMPTY_TABLE.num_entries = 0;
+			 AMQP_EMPTY_TABLE.entries = null;
 
-//				amqp_queue_bind(conn, 1, queuename, amqp_cstring_bytes(exchange), amqp_cstring_bytes(bindingkey), AMQP_EMPTY_TABLE);
+			 //				amqp_queue_bind(conn, 1, queuename, amqp_cstring_bytes(exchange), amqp_cstring_bytes(bindingkey), AMQP_EMPTY_TABLE);
 
-				Stdout.format("Binding queue ok").newline;
-			}
-			catch(Exception ex)
-			{
-				Stdout.format("Exception in: Binding queue");
-				throw ex;
-				}*/
+			 Stdout.format("Binding queue ok").newline;
+			 }
+			 catch(Exception ex)
+			 {
+			 Stdout.format("Exception in: Binding queue");
+			 throw ex;
+			 }*/
 
 			try
 			{
@@ -198,16 +213,13 @@ class librabbitmq_client: mom_client
 				amqp_basic_consume(conn, 1, amqp_cstring_bytes(bindingkey), AMQP_EMPTY_BYTES, 0, 1, 0);
 
 				Stdout.format("Consuming ok").newline;
-			}
-			catch(Exception ex)
+			} catch(Exception ex)
 			{
-				Stdout.format("Exception in: Consuming");
+				Stdout.format("amqp_open_socket:Exception in: Consuming");
 				throw ex;
 			}
 
 			{
-
-				//Stdou.format("amqp#0").newline;
 
 				amqp_frame_t frame;
 				int result_listen;
@@ -219,7 +231,6 @@ class librabbitmq_client: mom_client
 
 				while(true)
 				{
-					//Stdou.format("amqp#1").newline;
 					i = 0;
 					while(socket is null || i++ > 100)
 					{
@@ -227,7 +238,6 @@ class librabbitmq_client: mom_client
 					}
 
 					//log.trace("#release buffers start");
-					
 
 					amqp_maybe_release_buffers(conn);
 
@@ -241,7 +251,7 @@ class librabbitmq_client: mom_client
 						log.trace("Socket is NULL!!!");
 					}
 					//log.trace("#wait 1 start");
-					
+
 					result_listen = amqp_simple_wait_frame(conn, &frame);
 
 					//log.trace("#wait 1 end");
@@ -253,17 +263,17 @@ class librabbitmq_client: mom_client
 					//					printf("Result %d\n", result);
 					if(result_listen <= 0)
 					{
-						//log.trace("result_listen {} <= 0, -> break", result_listen);
+						Stdout.format("amqp_open_socket:result_listen {} <= 0, break listen", result_listen);
 						break;
 						//continue;
 					}
 
 					//Stdou.format("Frame type {}, channel {}", frame.frame_type, frame.channel).newline;
-					if(frame.frame_type != AMQP_FRAME_METHOD) {
+					if(frame.frame_type != AMQP_FRAME_METHOD)
+					{
 						//log.trace("frame.frame_type != AMQP_FRAME_METHOD");
 						continue;
 					}
-					//Stdou.format("amqp#2").newline;
 
 					//Stdou.format("Payload method = {}", frame.payload.method.id).newline;
 
@@ -271,20 +281,19 @@ class librabbitmq_client: mom_client
 
 					//					amqp_method_number_t frame_payload_method_id = frame.payload.method.id;
 					/*					uint* ptr_frame_payload_method_decoded = cast(uint*) (cast(void*) &frame + 8);
-					size_t* ptr_frame_payload_body_fragment_len = cast(uint*) (cast(void*) &frame + 4);
-					uint* ptr_frame_payload_body_fragment_bytes = cast(uint*) (cast(void*) &frame + 8);
-					uint16_t* ptr_frame_payload_properties_class_id = cast(uint16_t*) (cast(void*) &frame + 6); // ? uint64_t
-					uint16_t* ptr_frame_payload_properties_body_size = cast(uint16_t*) (cast(void*) &frame + 8);
-					uint* ptr_frame_payload_properties_decoded = cast(uint*) (cast(void*) &frame + 10);*/
+					 size_t* ptr_frame_payload_body_fragment_len = cast(uint*) (cast(void*) &frame + 4);
+					 uint* ptr_frame_payload_body_fragment_bytes = cast(uint*) (cast(void*) &frame + 8);
+					 uint16_t* ptr_frame_payload_properties_class_id = cast(uint16_t*) (cast(void*) &frame + 6); // ? uint64_t
+					 uint16_t* ptr_frame_payload_properties_body_size = cast(uint16_t*) (cast(void*) &frame + 8);
+					 uint* ptr_frame_payload_properties_decoded = cast(uint*) (cast(void*) &frame + 10);*/
 
 					//Stdou.format("Payload method = {}", frame.payload.method.id).newline;
-
-					if(frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD) {
+					if(frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD)
+					{
 						//log.trace("frame.payload.method.id != AMQP_BASIC_DELIVER_METHOD");
 						continue;
 					}
 
-					//Stdou.format("amqp#3").newline;
 
 					d = cast(amqp_basic_deliver_t*) frame.payload.method.decoded;
 					/*
@@ -301,9 +310,8 @@ class librabbitmq_client: mom_client
 						log.trace("Socket is NULL!!!");
 					}
 
-					
 					//log.trace("wait 2 start");
-					
+
 					result_listen = amqp_simple_wait_frame(conn, &frame);
 
 					//log.trace("wait 2 end");
@@ -330,17 +338,17 @@ class librabbitmq_client: mom_client
 					p = cast(amqp_basic_properties_t*) frame.payload.properties.decoded;
 
 					/*					if(p._flags & AMQP_BASIC_CONTENT_TYPE_FLAG)
-					{
-						printf("Content-type: %.*s\n",
-						       cast(int) p.content_type.len, cast(char *) p.content_type.bytes);
-						       }*/
+					 {
+					 printf("Content-type: %.*s\n",
+					 cast(int) p.content_type.len, cast(char *) p.content_type.bytes);
+					 }*/
 
 					body_target = frame.payload.properties.body_size;
 					body_received = 0;
 
-					//Stdou.format("result body_target={} class_id={}", body_target,
+					//Stdout.format("result body_target={} class_id={}", body_target,
 					//					      frame.payload.properties.class_id).newline;
-					
+
 					//log.trace("incoming message...recieving started");
 					while(body_received < body_target)
 					{
@@ -351,9 +359,8 @@ class librabbitmq_client: mom_client
 							log.trace("Socket is NULL!!!");
 						}
 
-						
 						//log.trace("#wait 3 start");
-						
+
 						result_listen = amqp_simple_wait_frame(conn, &frame);
 
 						//log.trace("#wait 3 end");
@@ -392,15 +399,14 @@ class librabbitmq_client: mom_client
 						byte* message = cast(byte*) frame.payload.body_fragment.bytes;
 
 						//log.trace("#message acceptor start");
-						
+
 						message_acceptor(message, frame.payload.body_fragment.len, this);
 
 						//log.trace("#message acceptor end");
-						
+
 					}
 					//					printf("DeliveryTag %u\n", d.delivery_tag);
 					//amqp_basic_ack(conn, 1, d.delivery_tag, 0);
-
 
 					//			if(body_received != body_target)
 					//			{
@@ -416,57 +422,3 @@ class librabbitmq_client: mom_client
 	}
 
 }
-/*
- void die_on_amqp_error(amqp_rpc_reply_t_ x, char *context) 
- { 
- fprintf(stderr, "!!!0"); 
- 
- switch (x.reply_type) { 
- case AMQP_RESPONSE_NORMAL: 
- return; 
- 
- case AMQP_RESPONSE_NONE: 
- fprintf(stderr, "%s: missing RPC reply type!", context); 
- break; 
- 
- case AMQP_RESPONSE_LIBRARY_EXCEPTION: 
- fprintf(stderr, "%s: %s\n", context, 
- x.library_errno ? strerror(x.library_errno) : "(end-of-stream)"); 
- break; 
- 
- case AMQP_RESPONSE_SERVER_EXCEPTION: 
- switch (x.reply.id) { 
- case AMQP_CONNECTION_CLOSE_METHOD: { 
- fprintf(stderr, "!!!1"); 
-
- 
- amqp_connection_close_t *m = (amqp_connection_close_t_ *) x.reply.decoded; 
- fprintf(stderr, "%s: server connection error %d, message: %.*s", 
- context, 
- m.reply_code, 
- (int) m.reply_text.len, (char *) m.reply_text.bytes);
- 
- 
- break; 
- } 
- case AMQP_CHANNEL_CLOSE_METHOD: { 
- fprintf(stderr, "!!!2"); 
- 
- amqp_channel_close_t *m = (amqp_channel_close_t *) x.reply.decoded; 
- fprintf(stderr, "%s: server channel error %d, message: %.*s", 
- context, 
- m.reply_code, 
- (int) m.reply_text.len, (char *) m.reply_text.bytes); 
- 
- break; 
- } 
- default: 
- fprintf(stderr, "%s: unknown server error, method id 0x%08X", context, x.reply.id); 
- break; 
- } 
- break; 
- } 
- 
- exit(1); 
- }
- */

@@ -12,6 +12,6 @@ interface mom_client
 	// forward to receiving the message
 	public char* get_message ();
 	
-	//
+	// return name of transport
 	public char[] getInfo ();
 }
