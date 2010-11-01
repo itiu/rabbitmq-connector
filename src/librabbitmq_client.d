@@ -27,7 +27,7 @@ class librabbitmq_client: mom_client
 	char* bindingkey = null;
 	char* exchange = cast(char*) "\0";
 
-	int waiting_for_login = 5;
+	int waiting_for_login = 10;
 	Socket socket;
 
 	char[] hostname;
@@ -418,7 +418,7 @@ class librabbitmq_client: mom_client
 			}
 
 		}
-
+         log.trace ("librabbitmq_client:exit from thread");
 	}
 
 }
